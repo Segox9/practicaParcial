@@ -27,15 +27,19 @@ private:
     QVector<double> x;
     QVector<double> f;
     QVector<double> g;
-    void interseccion(double x1, double x2);
     double newton_rapshon(double x0);
     void error(const QString &mensaje);
     void marcarPuntos(double xroot, double yroot);
+    void Busqueda(int &liminf, int &limsup);
+    double areaTrapecios(int x1, int x2, QVector<double> fun);
+    double areaRectangulo(int x1, int x2, QVector<double> fun);
+    QVector<double> buscarIntersecciones(const QVector<double> &x, const QVector<double> &fx, const QVector<double> &gx);
 public slots:
     void plot();
     void refresh();
     void area();
     void rootFx();
     void rootGx();
+    void interseccion();
 };
 #endif // MAINWINDOW_H

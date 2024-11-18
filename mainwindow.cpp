@@ -12,6 +12,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->froot, SIGNAL(clicked()), this, SLOT(rootFx()));
     connect(ui->groot, SIGNAL(clicked()), this, SLOT(rootGx()));
     connect(ui->refresh, SIGNAL(clicked()), this, SLOT(refresh()));
+    connect(ui->area, SIGNAL(clicked()), this, SLOT(area()));
+    connect(ui->interseccion, SIGNAL(clicked()), this, SLOT(interseccion()));
 }
 
 MainWindow::~MainWindow()
@@ -54,76 +56,6 @@ void MainWindow::plot()
     }
 }
 
-/*void MainWindow::raices()
-{
-    QString funtion = ui->funtion->text().trimmed();
-    qDebug() << "Funcion a buscar raices " << funtion;
-    double xlr = ui->xleft->text().toDouble();
-    double xrr = ui->xright->text().toDouble();
-    double tolerance = 1e-6;
-    double x;
-    parser.DefineVar(L"x", &x);
-    if((funtion.compare("f(x)", Qt::CaseInsensitive) == 0) ||
-        (funtion.compare("f", Qt::CaseInsensitive) == 0)){
-        parser.SetExpr(ui->fx->text().toStdWString());
-        x = xlr;
-        double yizq = parser.Eval();
-        x = xrr;
-        double yder = parser.Eval();
-        if((yizq * yder) < 0){
-            while((xrr - xlr) > tolerance){
-                double xmed = (xrr + xlr)/2.0;
-                x = xlr;
-                yizq = parser.Eval();
-                x = xmed;
-                double ymed = parser.Eval();
-                if((yizq * ymed) < 0){
-                    xrr = xmed;
-                } else{
-                    xlr = xmed;
-                }
-            }
-            x = (xrr + xlr)/2.0;
-            double y = parser.Eval();
-            marcarPuntos(x, y);
-        } else{
-            error("No se encontraron raices");
-        }
-    } else{
-        error("Sintaxis de funcion mal ingresada");
-        error("Ingrese f(x), g(x), f o g");
-    }
-    if((funtion.compare("g(x)", Qt::CaseInsensitive) == 0) ||
-        (funtion.compare("g", Qt::CaseInsensitive) == 0)){
-        parser.SetExpr(ui->gx->text().toStdWString());
-        x = xlr;
-        double yizq = parser.Eval();
-        x = xrr;
-        double yder = parser.Eval();
-        if((yizq * yder) < 0){
-            while((xrr - xlr) > tolerance){
-                double xmed = (xrr + xlr)/2.0;
-                x = xlr;
-                yizq = parser.Eval();
-                x = xmed;
-                double ymed = parser.Eval();
-                if((yizq * ymed) < 0){
-                    xrr = xmed;
-                } else{
-                    xlr = xmed;
-                }
-            }
-            x = (xrr + xlr)/2.0;
-            double y = parser.Eval();
-            marcarPuntos(x, y);
-        } else{
-            error("No se encontraron raices");
-        }
-    } else{
-        error("Sintaxis de funcion mal ingresada");
-        error("Ingrese f(x), g(x), f o g");
-    }
-}*/
 void MainWindow::marcarPuntos(double xroot, double yroot){
     if(ui->widget->graphCount() <= 2){
         ui->widget->addGraph();
@@ -205,11 +137,86 @@ void MainWindow::rootGx(){
 }
 void MainWindow::area()
 {
-
+    int xi, xf;
+    Busqueda(xi, xf);
+    //pregunto si las funciones se intersectan (caso particular), sino se calcula el area como esta abajo
+    double areaFx, areaGx;
+    areaFx = areaTrapecios(xi, xf, f);
+    areaGx = areaTrapecios(xi, xf, g);
+    qDebug() << "Area de f(x): " << areaFx;
+    qDebug() << "Area de g(x): " << areaGx;
+    double areaTot;
+    if(areaFx > areaGx){
+        areaTot = areaFx - areaGx;
+    } else{
+        areaTot = areaGx - areaFx;
+    }
+    if((areaFx < 0) && (areaGx < 0)){
+        areaTot = areaFx + areaGx;
+    }
+    qDebug() << "Area total: " << areaTot;
+}
+void MainWindow::Busqueda(int &liminf, int &limsup){
+    double xla = ui->xia->text().toDouble();
+    double xra = ui->xfa->text().toDouble();
+    double dx = 1e-4;
+    liminf = (xla - x[0])/dx;
+    limsup = (xra - x[0])/dx;
+    qDebug() << "xi: " << liminf;
+    qDebug() << "xf: " << limsup;
 }
 
-void MainWindow::interseccion(double x1, double x2)
+double MainWindow::areaTrapecios(int x1, int x2, QVector<double> fun)
 {
+    double area = 0, h1=0, h2=0;
+    for(int i=x1; i<x2; i++){
+        h1 = fun[i+1] - fun[i];
+        h2 = fun[i];
+        double delta_x = x[i + 1] - x[i];
+        area += delta_x*((h1/2) + h2);
+    }
+    return area;
+}
+
+double MainWindow::areaRectangulo(int x1, int x2, QVector<double> fun)
+{
+    double area = 0, base, alt;
+    for(int i=x1; i<x2; i++){
+        alt = fun[i+1] - fun[i];
+        base = x[i+1] - x[i];
+        area += alt*base;
+    }
+    return area;
+}
+QVector<double> MainWindow::buscarIntersecciones(const QVector<double> &x, const QVector<double> &fx, const QVector<double> &gx){
+    QVector<double> intersectionsX; // Para guardar los valores de x de los puntos de intersección
+    QVector<double> intersectionsY; // Para guardar los valores de y en los puntos de intersección
+
+    for (int i = 0; i < x.size() - 1; i++) {
+        double y1 = fx[i] - gx[i];     // Diferencia en el punto actual
+        double y2 = fx[i+1] - gx[i+1]; // Diferencia en el siguiente punto
+
+        // Si hay cambio de signo
+        if (((y1 > 0) && (y2 < 0)) || ((y1 < 0) && (y2 > 0))) {
+            // Interpolación lineal para aproximar x en la intersección
+            double xIntersect = x[i] - (y1 * (x[i+1] - x[i]) / (y2 - y1));
+            double yIntersect = fx[i] + ((fx[i+1] - fx[i]) * (xIntersect - x[i]) / (x[i+1] - x[i]));
+
+            intersectionsX.append(xIntersect); // Agregar x de intersección
+            intersectionsY.append(yIntersect); // Agregar y de intersección
+        }
+    }
+
+    // Opcional: Imprimir puntos de intersección
+    for (int i = 0; i < intersectionsX.size(); i++) {
+        qDebug() << "Intersección en x =" << intersectionsX[i] << ", y =" << intersectionsY[i];
+    }
+
+    return intersectionsX; // Devuelve los valores de x donde ocurre la intersección
+}
+void MainWindow::interseccion()
+{
+    QVector<double> interX = buscarIntersecciones(x, f, g);
 
 }
 
