@@ -57,12 +57,11 @@ void MainWindow::plot()
 }
 
 void MainWindow::marcarPuntos(double xroot, double yroot){
-    if(ui->widget->graphCount() <= 2){
-        ui->widget->addGraph();
-        ui->widget->graph(2);
-        ui->widget->graph(2)->setLineStyle(QCPGraph::lsNone);
-        ui->widget->graph(2)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCircle, QPen(Qt::red), QBrush(Qt::red), 4));
-    }
+    ui->widget->addGraph();
+    ui->widget->graph(2);
+    ui->widget->graph(2)->setLineStyle(QCPGraph::lsNone);
+    ui->widget->graph(2)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCircle, QPen(Qt::black), QBrush(Qt::black), 4));
+
     QVector<double> x(1), y(1);
     x[0] = xroot;
     y[0] = yroot;
@@ -139,21 +138,13 @@ void MainWindow::area()
 {
     int xi, xf;
     Busqueda(xi, xf);
-    //pregunto si las funciones se intersectan (caso particular), sino se calcula el area como esta abajo
     double areaFx, areaGx;
     areaFx = areaTrapecios(xi, xf, f);
     areaGx = areaTrapecios(xi, xf, g);
     qDebug() << "Area de f(x): " << areaFx;
     qDebug() << "Area de g(x): " << areaGx;
-    double areaTot;
-    if(areaFx > areaGx){
-        areaTot = areaFx - areaGx;
-    } else{
-        areaTot = areaGx - areaFx;
-    }
-    if((areaFx < 0) && (areaGx < 0)){
-        areaTot = areaFx + areaGx;
-    }
+    double areaTot = std::abs(areaFx - areaGx);
+    agregarLeyenda(QString("Area total: %1").arg(areaTot));
     qDebug() << "Area total: " << areaTot;
 }
 void MainWindow::Busqueda(int &liminf, int &limsup){
@@ -217,7 +208,69 @@ QVector<double> MainWindow::buscarIntersecciones(const QVector<double> &x, const
 void MainWindow::interseccion()
 {
     QVector<double> interX = buscarIntersecciones(x, f, g);
+    if (interX.size() < 2) {
+        error("No hay suficientes intersecciones para calcular el área.");
+        return;
+    }
+    QVector<int> intersX(interX.size());
+    double dx = 1e-4;
+    for(int i=0; i<interX.size(); i++){
+        intersX[i] = (interX[i] - x[0])/dx;
+    }
+    double areaF = areaTrapecios(intersX[0], intersX[1], f);
+    double areaG = areaTrapecios(intersX[0], intersX[1], g);
+    qDebug() << "Area de f: " << areaF;
+    qDebug() << "Area de g: " << areaG;
+    double areatot = std::abs(areaF - areaG);
+    qDebug() << "Area entre las intersecciones de f y g: " << areatot;
+    agregarLeyenda(QString("Area entre f y g: %1").arg(areatot));
+    pintarArea(interX, f, g);
+}
+void MainWindow::pintarArea(const QVector<double> &interX, const QVector<double> &fx, const QVector<double> &gx){
 
+    // Verificar si hay al menos dos intersecciones
+    if (interX.size() < 2)
+    {
+        error("No se encontraron suficientes intersecciones para pintar el área.");
+        return;
+    }
+
+    // Filtrar los datos para quedarse solo con el rango entre las intersecciones
+    QVector<double> xRecortado, fRecortado, gRecortado;
+    for (int i = 0; i < x.size(); ++i)
+    {
+        if (x[i] >= interX[0] && x[i] <= interX[1])
+        {
+            xRecortado.append(x[i]);
+            fRecortado.append(fx[i]);
+            gRecortado.append(gx[i]);
+        }
+    }
+
+    // Crear gráficos para las dos funciones recortadas
+    QCPGraph *graphF = ui->widget->addGraph();
+    QCPGraph *graphG = ui->widget->addGraph();
+
+    // Asignar los datos a los gráficos recortados
+    graphF->setData(xRecortado, fRecortado);
+    graphG->setData(xRecortado, gRecortado);
+
+    // Sombrear el área entre las gráficas recortadas
+    graphF->setBrush(QColor(100, 100, 255, 100)); // Azul semitransparente
+    graphF->setChannelFillGraph(graphG);          // Rellenar el área entre graphF y graphG
+
+    // Ajustar estilos (opcional)
+    graphF->setPen(QPen(Qt::blue));
+    graphG->setPen(QPen(Qt::red));
+
+    // Reescalar y repintar el gráfico
+    ui->widget->rescaleAxes();
+    ui->widget->replot();
+}
+
+void MainWindow::agregarLeyenda(const QString &texto)
+{
+    ui->leyenda->setText(texto);
 }
 
 

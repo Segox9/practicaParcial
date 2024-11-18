@@ -33,6 +33,8 @@ private:
     void Busqueda(int &liminf, int &limsup);
     double areaTrapecios(int x1, int x2, QVector<double> fun);
     double areaRectangulo(int x1, int x2, QVector<double> fun);
+    void pintarArea(const QVector<double> &interX, const QVector<double> &fx, const QVector<double> &gx);
+    void agregarLeyenda(const QString &texto);
     QVector<double> buscarIntersecciones(const QVector<double> &x, const QVector<double> &fx, const QVector<double> &gx);
 public slots:
     void plot();
